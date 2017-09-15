@@ -1,0 +1,22 @@
+{
+  "Role": "<AWS_IAM_ROLE>",
+  "Description": "Lambda function that anonymizes data.",
+  "Runtime": "nodejs6.10",
+  "Code": {
+    "ZipFile": null
+  },
+  "Timeout": 30,
+  "MemorySize": 320,
+  "Publish": true,
+  "VpcConfig": {
+    "SecurityGroupIds": [
+      "<SECURITY_GROUP_IDS>"
+    ],
+    "SubnetIds": [
+      "<SUBNET_IDS>"
+    ]
+  },
+  "aws": {
+    "region": "AWS_REGION"
+  }
+}

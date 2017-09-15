@@ -1,0 +1,35 @@
+{
+  "name": "anonymizer-service",
+  "version": "0.0.1",
+  "description": "Service for anonymizing data.",
+  "keywords": [
+    "anonymizer",
+    "pii",
+    "cleanser"
+  ],
+  "scripts": {
+    "kmsEncryptJson": "tools/bin/kms-encrypt-json $jsonfile etc/db.json --outputFile=src/secure/db.json",
+    "setupDatabase": "tools/bin/setup-database",
+    "insertPhonyData": "tools/bin/insert-phony-data phony-data",
+    "zipLambda": "tools/bin/create-zip $zipPath src/anonymizer-service.zip $itemsToZip src/lib src/secure src/etc src/anonymizer-service.js node_modules",
+    "upsertLambda": "tools/bin/upsert-lambda anonymizer-service",
+    "deployLambda": "npm run zipLambda && npm run upsertLambda",
+    "upsertApi": "tools/bin/upsert-api anonymizer-service",
+    "setup": "npm run setupDatabase && npm run insertPhonyData && npm run zipLambda && npm run upsertLambda && npm run upsertApi",
+    "test": "jest --coverage --config etc/jest.config.json"
+  },
+  "dependencies": {
+    "coa": "2.0.0",
+    "crypto": "0.0.3",
+    "csv-string": "2.3.2",
+    "easy-zip2": "1.0.0",
+    "mysql": "2.14.1",
+    "q": "1.4.1",
+    "readline": "1.3.0"
+  },
+  "devDependencies": {
+    "aws-sdk": "2.38.0",
+    "jest": "19.0.2"
+  },
+  "license": "MIT"
+}

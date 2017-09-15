@@ -1,0 +1,118 @@
+{
+  "aws": {
+    "region": "<AWS_REGION>"
+  },
+  "createDeployment": {
+    "dev": {
+      "cacheClusterEnabled": false,
+      "description": "Deployment of the anonymizer-service API",
+      "stageDescription": "Default deployed stage",
+      "stageName": "<STAGE_NAME>"
+    }
+  },
+  "swagger": "2.0",
+  "info": {
+    "version": "2017-02-15T17:12:38Z",
+    "title": "anonymizer-service",
+    "description": "Public calls to the anonymizer-service APIs"
+  },
+  "schemes": [
+    "https"
+  ],
+  "paths": {
+    "/anonymize": {
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "schema": {
+              "$ref": "#/definitions/Empty"
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Auth0": []
+          }
+        ],
+        "x-amazon-apigateway-integration": {
+          "credentials": "<API_GATEWAY_CREDENTIALS_ARN>",
+          "responses": {
+            "default": {
+              "statusCode": "200",
+              "responseParameters": {
+                "method.response.header.Access-Control-Allow-Origin": "'*'"
+              }
+            }
+          },
+          "uri": "<LAMBDA_FUNCTION_URI_ARN>",
+          "passthroughBehavior": "when_no_match",
+          "httpMethod": "POST",
+          "contentHandling": "CONVERT_TO_TEXT",
+          "type": "aws_proxy"
+        }
+      },
+      "options": {
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "200 response",
+            "schema": {
+              "$ref": "#/definitions/Empty"
+            },
+            "headers": {
+              "Access-Control-Allow-Origin": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Methods": {
+                "type": "string"
+              },
+              "Access-Control-Allow-Headers": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration": {
+          "responses": {
+            "default": {
+              "statusCode": "200",
+              "responseParameters": {
+                "method.response.header.Access-Control-Allow-Methods": "'POST,OPTIONS'",
+                "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+                "method.response.header.Access-Control-Allow-Origin": "'*'"
+              }
+            }
+          },
+          "requestTemplates": {
+            "application/json": "{\"statusCode\": 200}"
+          },
+          "passthroughBehavior": "when_no_match",
+          "type": "mock"
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Empty": {
+      "type": "object",
+      "title": "Empty Schema"
+    }
+  },
+  "x-amazon-apigateway-binary-media-types": [
+    "multipart/form-data"
+  ]
+}

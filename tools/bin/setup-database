@@ -1,0 +1,32 @@
+#!/usr/bin/env node
+'use strict'
+
+const setupDatabase = require('../lib/setup-database')
+
+const cli = require('coa')
+    .Cmd()
+    .name("setup-database")
+    .title("Deploy AWS lambda function")
+    .helpful()
+
+cli.opt()
+    .name('recreate')
+    .long('recreate')
+    .title('Drop all tables if they exist and recreate them (THIS WILL DELETE EXISTING DATA)')
+    .flag()
+    .end()
+
+cli.act((opts, args) => {
+
+    return setupDatabase.cli(opts, args)
+        .then(() => {
+            process.exit()
+        })
+        .catch((error) => {
+            console.log(error)
+            process.exit(1)
+        })
+
+})
+
+cli.run()

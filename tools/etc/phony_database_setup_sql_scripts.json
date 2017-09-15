@@ -1,0 +1,10 @@
+{
+  "useDatabase": "USE ?",
+  "dropTable": "DROP TABLE IF EXISTS ?",
+  "createPhonyTable": "CREATE TABLE ? (`PhonyValue` VARCHAR(255) NOT NULL, PRIMARY KEY (`PhonyValue`)) ENGINE = InnoDB DEFAULT CHARSET = latin1",
+  "createPhonyTableIfNotExists": "CREATE TABLE IF NOT EXISTS ? (`PhonyValue` VARCHAR(255) NOT NULL, PRIMARY KEY (`PhonyValue`)) ENGINE = InnoDB DEFAULT CHARSET = latin1",
+  "createPhonyLookupTable": "CREATE TABLE ? ( `PIIHashValue` CHAR(32) NOT NULL, `PhonyValue`   VARCHAR(255) DEFAULT NULL, PRIMARY KEY (`PIIHashValue`), UNIQUE KEY `PhonyValue_UNIQUE` (`PhonyValue`) ) ENGINE = InnoDB DEFAULT CHARSET = latin1",
+  "createPhonyLookupTableIfNotExists": "CREATE TABLE IF NOT EXISTS ? ( `PIIHashValue` CHAR(32) NOT NULL, `PhonyValue`   VARCHAR(255) DEFAULT NULL, PRIMARY KEY (`PIIHashValue`), UNIQUE KEY `PhonyValue_UNIQUE` (`PhonyValue`) ) ENGINE = InnoDB DEFAULT CHARSET = latin1",
+  "insertPhonyData": "INSERT IGNORE INTO ? (PhonyValue) VALUES ?",
+  "selectPhonyValues": "SELECT PhonyValue FROM ? WHERE PhonyValue IN(?)"
+}

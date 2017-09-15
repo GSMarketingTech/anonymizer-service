@@ -1,0 +1,30 @@
+#!/usr/bin/env node
+'use strict'
+
+const upsertApi = require('../lib/upsert-api')
+
+const cli = require('coa')
+    .Cmd()
+    .name('upsert-api')
+    .title('Upsert API on AWS API Gateway')
+    .helpful()
+
+cli.arg()
+    .name('api')
+    .title('API to upsert')
+    .req()
+    .end()
+
+cli.act((opts, args) => {
+
+    console.log("Upserting API Gateway: " + args.api)
+
+    return upsertApi.cli(opts, args)
+        .catch((error) => {
+            console.log(error)
+            return cli.reject(error)
+        })
+
+})
+
+cli.run()

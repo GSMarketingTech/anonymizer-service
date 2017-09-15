@@ -1,0 +1,37 @@
+#!/usr/bin/env node
+'use strict'
+
+const createZip = require('../lib/create-zip')
+
+const cli = require('coa')
+    .Cmd()
+    .name('create-zip')
+    .title('Upsert function on AWS Lambda')
+    .helpful()
+
+cli.arg()
+    .name("zipPath")
+    .title('Where to create the zip directory (including the name)')
+    .req()
+    .end()
+
+cli.arg()
+    .name('itemsToZip')
+    .title('List of items to be zipped (paths)')
+    .arr()
+    .req()
+    .end()
+
+cli.act((opts, args) => {
+
+    console.log("Creating zip: " + args.zipPath)
+
+    return createZip.cli(opts, args)
+        .catch((error) => {
+            console.log(error)
+            return cli.reject(error)
+        })
+
+})
+
+cli.run()

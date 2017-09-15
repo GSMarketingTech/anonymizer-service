@@ -1,0 +1,16 @@
+{
+  "collectCoverage": true,
+  "coverageReporters": [
+    "text"
+  ],
+  "moduleFileExtensions": [
+    "js"
+  ],
+  "roots": [
+    "<rootDir>"
+  ],
+  "testPathIgnorePatterns": [
+    "<rootDir>/node_modules"
+  ],
+  "testRegex": "/__tests__/.*\\.|spec\\.js$"
+}

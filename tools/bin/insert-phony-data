@@ -1,0 +1,33 @@
+#!/usr/bin/env node
+'use strict'
+
+const insertPhonyData = require('../lib/insert-phony-data')
+
+const cli = require('coa')
+    .Cmd()
+    .name('insert-phony-data')
+    .title('Insert phony data into the database')
+    .helpful()
+
+cli.arg()
+    .name('phonyDataDir')
+    .title('Path of directory containing .csv files with phony data')
+    .req()
+    .end()
+
+cli.act((opts, args) => {
+
+    console.log("Inserting phony data")
+
+    return insertPhonyData.cli(opts, args)
+        .then(() => {
+            process.exit()
+        })
+        .catch((error) => {
+            console.log(error)
+            process.exit(1)
+        })
+
+})
+
+cli.run()

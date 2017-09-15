@@ -1,0 +1,36 @@
+{
+  "SUCCESS": {
+    "status": 200,
+    "description": "Success"
+  },
+  "BAD_REQUEST": {
+    "status": 400,
+    "source": "Bad request",
+    "description": "Empty or malformed request"
+  },
+  "INVALID_CREDENTIALS": {
+    "status": 401,
+    "source": "Invalid credentials",
+    "description": "Credentials are not in a valid format or authorization has been refused for the given credentials"
+  },
+  "REQUEST_ENTITY_TOO_LARGE": {
+    "status": 413,
+    "source": "Request body is too large.",
+    "description": "Request does not meet the size requirements."
+  },
+  "INTERNAL_ERROR": {
+    "status": 500,
+    "source": "Internal server error",
+    "description": "An internal exception occurred"
+  },
+  "CONNECTION_ERROR": {
+    "status": 503,
+    "source": "Connection error",
+    "description": "Exception occurred while establishing connection"
+  },
+  "INSUFFICIENT_DATA_IN_DB": {
+    "status": 507,
+    "source": "Insufficient data",
+    "description": "Insufficient phony data in the database to complete request"
+  }
+}

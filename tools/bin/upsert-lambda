@@ -1,0 +1,31 @@
+#!/usr/bin/env node
+'use strict'
+
+const upsertLambda = require('../lib/upsert-lambda')
+
+const cli = require('coa')
+    .Cmd()
+    .name('upsert-lambda')
+    .title('Upsert function on AWS Lambda')
+    .helpful()
+
+cli.arg()
+    .name('function')
+    .title('Name of function to upsert (no .js)')
+    .req()
+    .def('anonymizer-service')
+    .end()
+
+cli.act((opts, args) => {
+
+    console.log("Upserting AWS Lambda: " + args.function)
+
+    return upsertLambda.cli(opts, args)
+        .catch((error) => {
+            console.log(error)
+            return cli.reject(error)
+        })
+
+})
+
+cli.run()

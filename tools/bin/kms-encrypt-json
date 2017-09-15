@@ -1,0 +1,184 @@
+#!/usr/bin/env node
+'use strict'
+
+const fs = require('fs')
+const path = require('path')
+const Q = require('q')
+Q.longStackSupport = true
+
+const AWS = require('aws-sdk')
+AWS.config.apiVersions = {
+    kms: '2014-11-01'
+}
+
+let kms
+
+const cli = require('coa')
+    .Cmd()
+    .name('encrypt-store')
+    .title('Encrypt values in a JSON file using a KMS key')
+    .helpful()
+
+cli.opt()
+    .name('decrypt')
+    .long('decrypt')
+    .flag()
+    .title('Decrypt an encrypted JSON file using KMS key')
+    .end()
+
+cli.opt()
+    .name('region')
+    .long('region')
+    .def('us-east-1')
+    .title('AWS region to use (defaults to us-east-1)')
+    .end()
+
+cli.arg()
+    .name('jsonfile')
+    .title('JSON file to encrypt/decrypt keys for')
+    .req()
+    .end()
+
+cli.opt()
+    .name('outputFile')
+    .long('outputFile')
+    .title('JSON file to write processed keys in')
+    .end()
+
+cli.arg()
+    .name('keyArn')
+    .title('ARN of the KMS key to encrypt with')
+    .end()
+
+cli.act((opts, args) => {
+
+    AWS.config.update({
+        region: opts.region
+    })
+    kms = new AWS.KMS()
+
+    return loadFile(args.jsonfile)
+        .then((json) => {
+            if (opts.decrypt) {
+                return decrypt(json)
+            }
+            if (!args.keyArn) {
+                throw new Error('Key ARN required to encrypt data')
+            }
+            return encrypt(json, args.keyArn)
+        })
+        .then((processedJson) => {
+            const data = JSON.stringify(processedJson, null, 2)
+
+            if (opts.outputFile) {
+                return writeToFile(opts.outputFile, data)
+            }
+            else {
+                console.log(data)
+            }
+        })
+        .catch((error) => {
+            return cli.reject(error.stack)
+        })
+
+})
+
+const loadFile = (filename) => {
+    const deferred = Q.defer()
+    try {
+        const json = require(path.resolve('.', filename))
+        deferred.resolve(json)
+    }
+    catch (error) {
+        deferred.reject(error)
+    }
+    return deferred.promise
+}
+
+const skipEncryptingValue = (value) => {
+    const valueType = typeof value
+    return !('string' === valueType || 'number' === valueType)
+}
+
+const encryptValue = (value, name, keyArn, encryptedJson) => {
+    const deferred = Q.defer()
+    if (skipEncryptingValue(value)) {
+        encryptedJson[name] = value
+        deferred.resolve()
+        return deferred.promise
+    }
+    try {
+        const params = {
+            KeyId: keyArn,
+            Plaintext: new Buffer(value),
+        }
+        kms.encrypt(params, (error, data) => {
+            if (error) {
+                return deferred.reject(new Error(error))
+            }
+            encryptedJson[name] = data.CiphertextBlob.toString('base64')
+            deferred.resolve()
+        })
+    }
+    catch (error) {
+        deferred.reject(error)
+    }
+    return deferred.promise
+}
+
+const encrypt = (json, keyArn) => {
+    const encryptedJson = {}
+    const promises = Object.keys(json).map((name) => {
+        return encryptValue(json[name], name, keyArn, encryptedJson)
+    })
+    return Q.all(promises)
+        .then(() => {
+            return encryptedJson
+        })
+}
+
+const skipDecryptingValue = (value) => {
+    return 'string' !== typeof value
+}
+
+const decryptValue = (value, name, decryptedJson) => {
+    const deferred = Q.defer()
+    if (skipDecryptingValue(value)) {
+        decryptedJson[name] = value
+        deferred.resolve()
+        return deferred.promise
+    }
+    try {
+        const params = {
+            CiphertextBlob: new Buffer(value, 'base64')
+        }
+        kms.decrypt(params, (error, data) => {
+            if (error) {
+                return deferred.reject(new Error(error))
+            }
+            decryptedJson[name] = data.Plaintext.toString()
+            deferred.resolve()
+        })
+    }
+    catch (error) {
+        deferred.reject(error)
+    }
+    return deferred.promise
+}
+
+const decrypt = (json) => {
+    const decryptedJson = {}
+    const promises = Object.keys(json).map((name) => {
+        return decryptValue(json[name], name, decryptedJson)
+    })
+    return Q.all(promises)
+        .then(() => {
+            return decryptedJson
+        })
+}
+
+const writeToFile = (path, data) => {
+    return Q.ninvoke(fs, 'writeFile', path, data)
+}
+
+cli.run()
