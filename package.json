@@ -1,7 +1,11 @@
 {
   "name": "anonymizer-service",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Service for anonymizing data.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GSMarketingTech/anonymizer-service"
+  },
   "keywords": [
     "anonymizer",
     "pii",
@@ -33,3 +37,4 @@
   },
   "license": "MIT"
 }
+
