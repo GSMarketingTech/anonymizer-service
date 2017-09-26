@@ -19,7 +19,7 @@
     "upsertLambda": "tools/bin/upsert-lambda anonymizer-service",
     "deployLambda": "npm run zipLambda && npm run upsertLambda",
     "upsertApi": "tools/bin/upsert-api anonymizer-service",
-    "setup": "npm run setupDatabase && npm run insertPhonyData && npm run zipLambda && npm run upsertLambda && npm run upsertApi",
+    "setup": "npm install && npm run setupDatabase && npm run insertPhonyData && npm run zipLambda && npm run upsertLambda && npm run upsertApi",
     "test": "jest --coverage --config etc/jest.config.json"
   },
   "dependencies": {
@@ -37,4 +37,3 @@
   },
   "license": "MIT"
 }
-

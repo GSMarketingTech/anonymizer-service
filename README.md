@@ -257,9 +257,9 @@ __error__: a container for error details
 | Resource | Limit |
 |:-------- | :---- |
 | Request size | 10 MB |
-| New PII fields to be anonymized | 1000 |
-| Total Pii fields to be processed (including new PII) | 6000 |
-| Non Pii fields to be processed | 100000 |
+| New PII fields to be anonymized | 10,000 |
+| Total Pii fields to be processed (including new PII) | 100,000 |
+| Non Pii fields to be processed | 100,000 |
 
 
 ## Running tests

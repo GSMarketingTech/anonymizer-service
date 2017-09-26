@@ -8,8 +8,8 @@ Q.longStackSupport = true
 
 const httpResponses = require('../../etc/http-status-responses.json')
 
-const MaxNewPiiFields = 1000
-const MaxTotalPiiFields = 6000
+const MaxNewPiiFields = 10000
+const MaxTotalPiiFields = 100000
 const MaxNonPiiFields = 100000
 
 const nonPiiDataConverters = {
@@ -85,17 +85,8 @@ const processNonPiiData = (dataColumns, nonPiiColDescriptors) => {
     }, {})
 }
 
-const queryLookupByHash = (hashValues, lookupTable, mysqlHelper) => {
-    const query = [
-        `SELECT * FROM ${lookupTable}`,
-        'WHERE PIIHashValue IN (?)'
-    ].join(' ')
-
-    return mysqlHelper.runQuery(query, [ hashValues ])
-}
-
 const getLookupTableForHashValues = (hashedData, lookupTable, mysqlHelper) => {
-    return queryLookupByHash(hashedData, lookupTable, mysqlHelper)
+    return getLookupTable(hashedData, lookupTable, mysqlHelper)
         .then((rows) => {
             return rows.reduce((map, row) => {
                 map[row.PIIHashValue] = row.PhonyValue
@@ -134,8 +125,11 @@ const getPhonyValuesByCol = (hashMap, piiCols, mysqlHelper) => {
 const getPiiInsertQueries = (hashes, lookupTable, phonyTable) => {
     const insertPhonyLookupQuery = [
         `INSERT INTO ${lookupTable} (PIIHashValue, PhonyValue)`,
-        "SELECT ? AS PIIHashValue, PhonyValue AS PhonyValue",
-        `FROM ${phonyTable} WHERE PhonyValue IS NOT NULL LIMIT 1`
+        `SELECT ?, ${phonyTable}.PhonyValue`,
+        `FROM ${phonyTable}`,
+        `WHERE NOT EXISTS(`,
+        `SELECT * FROM phony_mi_lookup WHERE PIIHashValue = ?`,
+        `) LIMIT 1`
     ].join(" ")
 
     const deletePhonyQuery = [
@@ -143,19 +137,12 @@ const getPiiInsertQueries = (hashes, lookupTable, phonyTable) => {
         `WHERE PhonyValue = (SELECT PhonyValue FROM ${lookupTable} WHERE PIIHashValue = ?)`
     ].join(" ")
 
-    return hashes.reduce((queryArr, hash) => {
-        queryArr.push({
-            sql: insertPhonyLookupQuery,
-            values: [hash]
-        })
+    return hashes.reduce((queries, hash) => {
+        queries.sql.push(insertPhonyLookupQuery, deletePhonyQuery)
+        queries.values.push(hash, hash, hash)
 
-        queryArr.push({
-            sql: deletePhonyQuery,
-            values: [hash]
-        })
-
-        return queryArr
-    }, [])
+        return queries
+    }, { sql: [], values: [] } )
 }
 
 const verifyPhonyValueCount = (hashValueCount, phonyTable, mysqlHelper) => {
@@ -174,19 +161,21 @@ const verifyPhonyValueCount = (hashValueCount, phonyTable, mysqlHelper) => {
 }
 
 const getNewHashValues = (currHashes, storedHashes) => {
-    return currHashes.filter((value) => {
-        return !storedHashes.includes(value)
-    })
+    if (storedHashes.length) {
+        return currHashes.filter((value) => {
+            return !storedHashes.includes(value)
+        })
+    }
+    return currHashes
 }
 
-const searchLookupTable = (lookupTable, uniqueValuesArr, mysqlHelper) => {
-    const lookupQuery = [
+const getLookupTable = (hashValues, lookupTable, mysqlHelper) => {
+    const query = [
         `SELECT * FROM ${lookupTable}`,
-        `WHERE PIIHashValue IN(?)`,
-        'ORDER BY PIIHashValue'
+        'WHERE PIIHashValue IN (?)'
     ].join(' ')
 
-    return mysqlHelper.runQuery(lookupQuery, [uniqueValuesArr])
+    return mysqlHelper.runQuery(query, [ hashValues ])
 }
 
 const getUniqueValues = (arr) => {
@@ -203,7 +192,7 @@ const getHashValuesToAdd = (piiColDescriptor, hashedPiiArr, mysqlHelper) => {
     }
 
     let hashValuesToAdd
-    return searchLookupTable(piiColDescriptor.lookupTable, uniqueHashes, mysqlHelper)
+    return getLookupTable(uniqueHashes, piiColDescriptor.lookupTable, mysqlHelper)
         .then((rows) => {
             const storedHashes = rows.map((value) => {
                 return value.PIIHashValue
@@ -285,16 +274,19 @@ const processPiiData = (dataMap, piiCols, mysqlHelper) => {
                 }
                 const queries = getPiiInsertQueries(item.hashValues,
                     item.pii.lookupTable, item.pii.phonyTable)
-                return map.concat(queries)
+                map.push(queries)
+                return map
             }, [])
         })
-        .then((queries) => {
-            if (queries.length) {
-                const options = {
-                    groupEvery: 2,
-                    skipErrorCode: "ER_DUP_ENTRY"
-                }
-                return mysqlHelper.runTransaction(queries, options)
+        .then((piiQueries) => {
+            if (piiQueries.length) {
+                return piiQueries.reduce((promise, queries) => {
+                    return promise
+                        .then(() => {
+                            const options = { retries: 10 }
+                            return mysqlHelper.runTransaction(queries, options)
+                        })
+                }, Q.Promise.resolve())
             }
         })
         .then(() => {
@@ -499,8 +491,9 @@ const run = (columns, rows) => {
     })
 
     let mysqlHelper
+    const mysqlOptions = { multipleStatements: true }
 
-    return MysqlHelper.create()
+    return MysqlHelper.create(mysqlOptions)
         .catch((error) => {
             console.log(error)
             throw errorBuilder.create(
@@ -558,13 +551,12 @@ module.exports = {
         getAnonymizedMatrix,
         processExtraData,
         processNonPiiData,
-        queryLookupByHash,
         getLookupTableForHashValues,
         getPhonyValuesForHashValues,
         getPhonyValuesByCol,
         getPiiInsertQueries,
         getNewHashValues,
-        searchLookupTable,
+        getLookupTable,
         getUniqueValues,
         verifyPhonyValueCount,
         getHashValuesToAdd,
