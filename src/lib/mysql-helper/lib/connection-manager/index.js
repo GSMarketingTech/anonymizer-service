@@ -4,6 +4,8 @@ const mysql = require('mysql')
 const Q = require('q')
 Q.longStackSupport = true
 
+const defaultMaxTransactionRetries = 10
+
 const defaultConnectionDetails = {
     connectionLimit: 100
 }
@@ -76,7 +78,7 @@ class ConnectionManager {
         return getConnection(connectionDetails)
             .then((connection) => {
                 this.connection = connection
-                return Q.Promise.resolve('Established database connection')
+                return Q.Promise.resolve(this.connection)
             })
             .catch((error) => {
                 console.log('MysqlHelper.getConnection', error.stack)
@@ -108,126 +110,97 @@ class ConnectionManager {
     }
 
     runQuery(sql, values) {
-        return Q.ninvoke(this.connection, 'query', sql, values)
+        return this.createConnection()
+            .then(() => {
+                return Q.ninvoke(this.connection, 'query', sql, values)
+            })
             .then((queryCallbackArgs) => {
                 return queryCallbackArgs[0]
             })
     }
 
-    rollback(waitTime) {
-        const wait = (ms) => {
-            ms = ms || 500
-            const start = new Date().getTime()
-            for (let i =0; i < 1e7; i++) {
-                if ((new Date().getTime() - start) > ms) {
-                    break;
-                }
-            }
-        }
-
-        wait(waitTime)
-
-        console.log("Rolling back..")
-        return Q.ninvoke(this.connection, 'rollback')
-            .catch((error) => {
-                console.log(error.message)
-            })
-    }
-
-    commit() {
-        return Q.ninvoke(this.connection, 'commit')
-    }
-
-    runTransactionQueries(queryArr, options) {
-        const opts = Object.assign({}, options)
-        opts.groupEvery = options.groupEvery || 1
-
-        const skippedErrMsgs = []
-        const newQueryArr = queryArr
-
-        return queryArr.reduce((promise, query) => {
-            return promise
-                .then(() => {
-                    return this.runQuery(query.sql, [query.values])
-                })
-                .then((response) => {
-                    if (response.serverStatus === 35
-                        && response.affectedRows === 0) {
-                        throw new Error("Not enough phony values in the database.")
-                    }
-                })
-                .catch((error) => {
-                    if (error.code !== options.skipErrorCode) {
-                        throw error
-                    }
-                    skippedErrMsgs.push(error.message)
-                    const index = newQueryArr.findIndex((item) => {
-                        return query === item
-                    })
-                    newQueryArr.splice(index, options.groupEvery)
-                })
-        }, Q.Promise.resolve())
+    runTransactionQueries(queries) {
+        console.log('mysql-helper:runTransactionQueries')
+        return this.createConnection()
             .then(() => {
-                if (skippedErrMsgs.length) {
-                    const error = new Error (skippedErrMsgs)
-                    error.newQueryArr = newQueryArr
-                    throw error
-                }
+                return Q.ninvoke(this.connection, 'query', queries.sql.join('; '), queries.values)
+            })
+            .then((results) => {
+                const responses = results[0]
+                responses.forEach((item) => {
+                    if (item.serverStatus === 43 &&
+                        item.affectedRows === 0 &&
+                        item.message.includes('&Records: 0  Duplicates: 0  Warnings: 0')) {
+                        throw new Error('Insufficient phony values in the database.')
+                    }
+                })
             })
     }
 
-    beginTransaction() {
-        return Q.ninvoke(this.connection, 'beginTransaction')
-    }
-
-    recursiveTransaction(queryArr, iteration, options) {
-        const opts = Object.assign({}, options)
-        opts.maxRetries = opts.maxRetries || 10
-        let committed = false
-
-        if (iteration < opts.maxRetries) {
-            return this.beginTransaction()
-                .then(() => {
-                    return this.runTransactionQueries(queryArr, opts)
-                })
-                .then(() => {
-                    return this.commit()
-                })
-                .then(() => {
-                    committed = true
+    retryTransaction(queries, options) {
+        const deferred = Q.defer()
+        setTimeout(() => {
+            options.retries--
+            this.runTransaction(queries, options)
+                .then((result) => {
+                    deferred.resolve(result)
                 })
                 .catch((error) => {
-                    console.log(error.message)
-                    if (error.newQueryArr) {
-                        queryArr = error.newQueryArr
-                    }
-                    if (error.message === 'Not enough phony values in the database.') {
-                        throw error
-                    }
-                    return this.rollback(opts.waitTime)
+                    deferred.reject(error)
                 })
-                .then(() => {
-                    if (!committed) {
-                        return this.recursiveTransaction(queryArr, ++iteration, opts)
-                    }
-                })
-        }
-        throw new Error("Exceeded transaction max retry")
+        }, options.retries * 100)
+        return deferred.promise
     }
 
-    runTransaction(queryArr, options) {
-        const transactionMax = 200
+    runTransaction(queries, options) {
+        console.log('mysql-helper:runTransaction')
 
-        const batches = []
-        while (queryArr.length) {
-            batches.push(queryArr.splice(0, transactionMax))
+        const opts = Object.assign({}, options)
+        if (undefined === opts.retries) {
+            opts.retries = defaultMaxTransactionRetries
+        }
+        else if (isNaN(opts.retries) || 0 > opts.retries) {
+            const error = new Error('Invalid number of transaction retries specified')
+            return Q.Promise.reject(error)
         }
 
-        return batches.reduce((promise, batch) => {
-            return promise.then(() => {
-                return this.recursiveTransaction(batch, 0, options)
-            })
-        }, Q.Promise.resolve())
+        let connection
+
+        if (0 < opts.retries) {
+            return this.createConnection()
+                .then((c) => {
+                    connection = c
+                    console.log('Beginning transaction')
+                    return Q.ninvoke(connection, 'beginTransaction')
+                })
+                .then(() => {
+                    return this.runTransactionQueries(queries)
+                })
+                .then(() => {
+                    console.log('Committing transaction')
+                    return Q.ninvoke(connection, 'commit')
+                })
+                .catch((error) => {
+                    console.log(error.stack)
+
+                    if (!connection) {
+                        throw error
+                    }
+
+                    if (error.message === 'Insufficient phony values in the database.') {
+                        throw error
+                    }
+
+                    console.log('Rolling back transaction')
+                    return Q.ninvoke(connection, 'rollback')
+                        .then(() => {
+                            return this.retryTransaction(queries, opts)
+                        })
+
+                })
+        }
+
+        return Q.Promise.reject(new Error(`Exceeded transaction retry limit.`))
     }
 
 }

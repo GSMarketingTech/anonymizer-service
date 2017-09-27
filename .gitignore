@@ -1,0 +1,6 @@
+node_modules
+/src/anonymizer-service.zip
+/src/secure/db.json
+/etc/db.json
+/etc/anonymizer-service.api.config.json
+/etc/anonymizer-service.config.json

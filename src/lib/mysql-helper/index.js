@@ -24,9 +24,14 @@ const getConnectionDetails = () => {
 }
 
 module.exports = {
-    create: () => {
+    create: (connectionOptions) => {
+        if (!connectionOptions) {
+            connectionOptions = {}
+        }
+
         return getConnectionDetails()
             .then((connectionDetails) => {
+                connectionDetails = Object.assign(connectionOptions, connectionDetails)
                 return ConnectionManager.create(connectionDetails)
             })
     }

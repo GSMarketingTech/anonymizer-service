@@ -39,25 +39,6 @@ describe('anonymizer-service:convertArray', () => {
 
 })
 
-describe('anonymizer-service:searchLookupTable', () => {
-
-    it('should call runQuery from mysqlHelper with the appropriate arguments', () => {
-        const lookupTable = "phony_foo_lookup"
-        const uniqueValuesArr = ['foo', 'bar']
-        const lookupQuery = [
-            `SELECT * FROM ${lookupTable}`,
-            `WHERE PIIHashValue IN(?)`,
-            'ORDER BY PIIHashValue'
-        ].join(' ')
-
-        return anonymizerService._testExports.searchLookupTable(lookupTable, uniqueValuesArr, mysqlHelperMock)
-            .then(() => {
-                expect(mysqlHelperMock.runQuery).toHaveBeenCalledWith(lookupQuery, [uniqueValuesArr])
-            })
-    })
-
-})
-
 describe('anonymizer-service:getUniqueValues', () => {
 
     it('should return an array with the unique values for given array that has duplicates', () => {
@@ -157,7 +138,7 @@ describe('anonymizer-service:queryLookupByHash', () => {
 
         const hashValues = ['com30dc', 'msmv0e']
 
-        return anonymizerService._testExports.queryLookupByHash(hashValues, lookupTable, mysqlHelperMock)
+        return anonymizerService._testExports.getLookupTable(hashValues, lookupTable, mysqlHelperMock)
             .then(() => {
                 expect(mysqlHelperMock.runQuery).toHaveBeenCalledWith(query, [hashValues])
             })
