@@ -73,8 +73,8 @@ $ npm run kmsEncryptJson $region <region> $keyArn <keyArn>
 ```
 This command will encrypt the database json file that you created in step 6 above. 
 
-Replace '<region>' with your AWS region. 
-Replace '<keyArn>' with the [ARN of the KMS key](https://console.aws.amazon.com/iam/home#/encryptionKeys/) that you want to use to encrypt.
+Replace <region> with your AWS region. 
+Replace <keyArn> with the [ARN of the KMS key](https://console.aws.amazon.com/iam/home#/encryptionKeys/) that you want to use to encrypt.
 
 Once you have encrypted your database credentials, you can setup and deploy the Lambda function by running the following command:
 
